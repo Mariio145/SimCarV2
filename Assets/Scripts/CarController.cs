@@ -5,6 +5,10 @@ using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using System;
+using Unity.MLAgents.Policies;
+using TMPro;
+using NUnit.Framework.Constraints;
+using UnityEngine.SceneManagement;
 
 public class CarController : Agent
 {
@@ -12,38 +16,51 @@ public class CarController : Agent
     public Transform leftFrontWheel, rightFrontWheel;
     [HideInInspector] public ConvexHull convexHull;
     [Header("Car Settings")]
-    public float forwardAccel = 8;
-    public float reverseAccel = 4, turnStrength = 180, gravityForce = 10, dragOnGround = 3, maxWheelTurn = 25;
+    public bool isBot;
+    public float forwardAccel = 35;
+    public float reverseAccel = 15, turnStrength = 180, gravityForce = 20, dragOnGround = 3, maxWheelTurn = 25;
     private float speedInput, turnInput;
     public bool grounded;
     [Header("Ground Check")]
     public LayerMask groundLayer;
-    private float rayLength = 0.6f;
+    private float rayLength = 0.7f;
     public Transform groundRayPoint;
+    private float groundTimer;
     [HideInInspector] public bool[] checkpoints;
     [HideInInspector] public int numberLaps;
-    [HideInInspector] public float timeSpent;
+    [HideInInspector] public float lapTime;
+    [HideInInspector] public int botDifficulty = 0;
+    [Header("Car Stats")]
+    public MetricsSaver metricsSaver;
+    [SerializeField] private TextMeshProUGUI lapText;
+    [SerializeField] private GameObject TimeExposer;
+    private bool isFreezed = true;
+
     
     // Start is called before the first frame update
     public override void Initialize()
     {
         rb.transform.parent = null;
+        if (!isBot)
+        {
+            m_PolicyFactory.BehaviorType = BehaviorType.HeuristicOnly;
+            lapText.text = "Lap 0";
+        }
+        //m_PolicyFactory.BehaviorType = BehaviorType.HeuristicOnly;
     }
 
-    internal void StartTrack(Vector3 position, Quaternion rotation, int numCheckpoints)
+    internal void StartTrack(Vector3 position, Quaternion rotation, int numCheckpoints, float startVariation)
     {
-        rb.velocity = Vector3.zero;
-        rb.transform.position = position + Vector3.up*5;
         transform.rotation = rotation;
         checkpoints = new bool[numCheckpoints];
+        rb.transform.position = position + (Vector3.up*5) + transform.right * startVariation;
     }
 
     // Update is called once per frame
-    float groundTimer;
     void Update()
     {
-        timeSpent += Time.deltaTime;
-        transform.position = rb.transform.position;
+        if (!isFreezed)lapTime += Time.deltaTime;
+        transform.position = rb.transform.position - (Vector3.up * .45f);
 
         if (!grounded)
         {
@@ -86,14 +103,27 @@ public class CarController : Agent
                 AddReward(-10f);
                 return;
             }
+
         if (checkpoints[checkpointIndex])
             return;
+
         checkpoints[checkpointIndex] = true;
-        AddReward(1f - (timeSpent/10000f));
-        timeSpent = 0;
+        if (!isBot)StartCoroutine(ShowTime());
+
+        AddReward(1f - (lapTime/10000f));
     }
 
-    internal void LapFinished()
+    IEnumerator ShowTime()
+    {
+        TimeExposer.SetActive(true);
+
+        TimeExposer.GetComponentInChildren<TextMeshProUGUI>().text = GlobalVariables.FormatTime(lapTime);
+        yield return new WaitForSeconds(1.5f);
+
+        TimeExposer.SetActive(false);
+    }
+
+    internal void LapFinished(int position)
     {
         foreach (var checkpoint in checkpoints)
         {
@@ -104,40 +134,96 @@ public class CarController : Agent
         }
         checkpoints = new bool[checkpoints.Length];
         numberLaps += 1;
+        if (!isBot)
+        {
+            lapText.text = "Lap " + numberLaps;
+            StartCoroutine(ShowTime());
+        }
+        if (numberLaps >= 2)
+        {
+            Freeze();
+            if (!isBot)
+            {
+                GlobalVariables.position = position;
+                GlobalVariables.timeLap = lapTime;
+                foreach (CarController car in convexHull.cars)
+                    car.Freeze();
+                StartCoroutine(Exit());
+                metricsSaver.SaveMetrics(convexHull.cars[1].botDifficulty, lapTime, position);
+            }
+        }
+        
         AddReward(10f);
-        timeSpent = 0;
+    }
+
+    IEnumerator Exit()
+    {
+        yield return new WaitForSeconds(2);
+        SceneManager.LoadScene("EndScene");
     }
 
     internal void Respawn()
     {
+        if (isFreezed)
+            return;
         AddReward(-1f);
-        rb.velocity = Vector3.zero;
         for (int i = checkpoints.Length - 1; i >= 0; i--)
         {
             if (checkpoints[i])
             {
                 rb.transform.position = convexHull.checkpoints[i].transform.position + (Vector3.up * 5) + transform.forward * 5;
-                transform.position = rb.transform.position;
+                transform.position = rb.transform.position - (Vector3.up * .5f);
                 transform.rotation = convexHull.checkpoints[i].transform.rotation;
                 return;
             }
         }
 
         rb.transform.position = convexHull.endpoint.transform.position + (Vector3.up * 5) + transform.forward * 5;
-        transform.position = rb.transform.position;
+        transform.position = rb.transform.position - (Vector3.up * .5f);
         transform.rotation = convexHull.endpoint.transform.rotation;
+        rb.velocity = Vector3.zero;
+    }
+    internal void SetBotDifficulty(int botDifficulty)
+    {
+        this.botDifficulty = botDifficulty;
+        switch (botDifficulty)
+        {
+            case 1:
+                forwardAccel = 25;
+                reverseAccel = 10;
+                turnStrength = 150;
+                break;
+            case 2:
+                forwardAccel = 35;
+                reverseAccel = 15;
+                turnStrength = 180;
+                break;
+            case 3:
+                forwardAccel = 40;
+                reverseAccel = 20;
+                turnStrength = 200;
+                break;
+        }
+    }
+
+    internal void Unfreeze()
+    {
+        isFreezed = false;
+    }
+
+    internal void Freeze()
+    {
+        isFreezed = true;
     }
 
     public override void OnEpisodeBegin()
     {
-        numberLaps = 0;
-        StartTrack(convexHull.endpoint.transform.position, convexHull.endpoint.transform.rotation, convexHull.checkpoints.Count);
+        //numberLaps = 0;
+        //StartTrack(convexHull.endpoint.transform.position, convexHull.endpoint.transform.rotation, convexHull.checkpoints.Count, 0);
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        //speedInput = 0;
-        //turnInput = 0f;
         var spInput = Input.GetAxis("Vertical");
         var tuInput = Input.GetAxis("Horizontal");
 
@@ -148,6 +234,8 @@ public class CarController : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
+        if (isFreezed)
+            return;
         speedInput = 0;
         turnInput = actions.ContinuousActions.Array[1];
 
@@ -182,6 +270,12 @@ public class CarController : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
+        if (isFreezed)
+        {
+            sensor.AddObservation(new float[6]);
+            return;
+        }
+
         var currentCheckpoint = 0;
         for (int i = 0; i < checkpoints.Length; i++)
         {
@@ -190,10 +284,9 @@ public class CarController : Agent
                 break;
         }
 
-
+        // Observa la rotacion del agente
         sensor.AddObservation(new Vector3 (transform.forward.x, 0, transform.forward.z).normalized);
 
-        // Observa la rotacion del agente
         
         if (currentCheckpoint != checkpoints.Length - 1) 
         {

@@ -32,22 +32,12 @@ namespace BezierExtrudeTool
 
         private enum GenerateMeshMode{ GenerateEntirely, AddSegment, DeleteSegment, Modify }
 
-    #if UNITY_EDITOR
+    //#if UNITY_EDITOR
         private Vector3 GetPos(int i )
         {
             if(i % 3 == 0) return controlPoints[i / 3].position;
             else if((i - 1) % 3 == 0) return controlPoints[(i - 1)/ 3].transform.position + controlPoints[(i - 1)/ 3].transform.forward * controlPoints[(i - 1)/ 3].localScale.z;
             else return controlPoints[(i + 1) / 3].transform.position - controlPoints[(i + 1) / 3].transform.forward  * controlPoints[(i + 1) / 3].localScale.x;
-        }
-
-        public void ChangeControlPointData(int index, Vector3 position, Quaternion rotation, Vector3 scale)
-        {
-            controlPoints[index].localPosition = position;
-            controlPoints[index].localRotation = rotation;
-            controlPoints[index].localScale = scale;
-            controlPointsPositions[index] = position;
-            controlPointsRotations[index] = rotation;
-            controlPointsScales[index] = scale;
         }
 
         public Transform GetControlPoint(int index)
@@ -105,7 +95,209 @@ namespace BezierExtrudeTool
             }
         }
 
-        //Generates the mesh
+        /*public void OnDrawGizmos()
+        {
+            for (int i = 0; i < 4 + (3 * (controlPoints.Count - 2)); i++)
+            {
+                Gizmos.DrawSphere(GetPos(i), 0.2f);
+            }
+            for(int i = 0; i < controlPoints.Count - 1; i++)
+            {
+                Handles.DrawBezier(GetPos(0 + (3 * i)), GetPos(3 + (3 * i)), GetPos(1 + (3 * i)), GetPos(2 + (3 * i)), Color.red, EditorGUIUtility.whiteTexture, 1f);
+            }
+
+            OrientedPoint op = GetBezierOrientedPoint(t, bezierSegment);
+            //Handles.PositionHandle(op.position, op.rotation);
+
+            if(showRingShape)
+            {
+                Vector3[] verts = shape2D.vertices.Select(v => op.LocalToWorldPos(v.point)).ToArray();
+                for(int i = 0; i < shape2D.LineCount; i+=2)
+                {
+                    Vector3 a = verts[shape2D.lineIndices[i]];
+                    Vector3 b = verts[shape2D.lineIndices[i+1]];
+                    Gizmos.DrawLine(a, b);
+                }
+            }
+        }*/
+
+        private OrientedPoint GetBezierOrientedPoint(float t, int bezierSegment)
+        {
+            Vector3[] pts = new Vector3[4];
+            for (int i = 0; i < 4; i++) pts[i] = GetPos(i + (3 * bezierSegment));
+            float omt = 1f-t;
+            float omt2 = omt * omt;
+            float t2 = t * t;
+            Vector3 position =	pts[0] * ( omt2 * omt ) +
+                                pts[1] * ( 3f * omt2 * t ) +
+                                pts[2] * ( 3f * omt * t2 ) +
+                                pts[3] * ( t2 * t );
+
+            Vector3 tangent =   pts[0] * ( -omt2 ) +
+                                pts[1] * ( 3 * omt2 - 2 * omt ) +
+                                pts[2] * ( -3 * t2 + 2 * t ) +
+                                pts[3] * ( t2 );
+            Vector3 up = Vector3.Lerp(controlPoints[0 + (1 * bezierSegment)].up, controlPoints[1 + (1 * bezierSegment)].up, t).normalized;
+            Quaternion rotation = Quaternion.LookRotation(tangent, up);
+            return new OrientedPoint(position, rotation);
+        }
+
+        private float GetApproxLength(int precision = 100)
+        {
+            Vector3[] points = new Vector3[precision * (controlPoints.Count - 1)];
+            for(int i = 0; i < controlPoints.Count - 1; i++)
+            {
+                for (int j = 0; j < precision; j++)
+                {
+                    float t = j / (precision - 1f);
+                    points[j + (precision * i)] = GetBezierOrientedPoint(t, i).position;
+                }
+            }
+            float distance = 0;
+            for(int i = 0; i < precision - 1; i++)
+            {
+                distance += Vector3.Distance(points[i], points[i+1]);
+            }
+            return distance;
+        }
+
+        public void GenerateMeshAsset()
+        {
+            if(mesh == null)
+            {
+                mesh = new Mesh();
+                mesh.name = name + " Mesh";
+                GenerateMesh(GenerateMeshMode.GenerateEntirely);
+            }
+            if(!Directory.Exists("Assets/Resources/Bezier Models")) Directory.CreateDirectory("Assets/Resources/Bezier Models");
+            var path = $"Assets/Resources/Bezier Models/{mesh.name}.asset";
+
+            AssetDatabase.CreateAsset(mesh, path);
+            EditorGUIUtility.PingObject(mesh);
+        }
+
+        public void DeleteMeshAsset()
+        {
+            var path = $"Assets/Resources/Bezier Models/{mesh.name}.asset";
+            AssetDatabase.DeleteAsset(path);
+            mesh = new Mesh();
+            mesh.name = name + " Mesh";
+            GenerateMesh(GenerateMeshMode.GenerateEntirely);
+        }
+
+        public bool CheckMeshAsset()
+        {
+            if(mesh == null) return false;
+            var path = $"Assets/Resources/Bezier Models/{mesh.name}.asset";
+            return AssetDatabase.LoadAssetAtPath<Mesh>(path) != null;
+        }
+
+        public void RemoveControlPoint()
+        {
+            DestroyImmediate(controlPoints[controlPoints.Count - 1].gameObject);
+            controlPoints.RemoveAt(controlPoints.Count - 1);
+            controlPointsPositions.RemoveAt(controlPointsPositions.Count - 1);
+            controlPointsRotations.RemoveAt(controlPointsRotations.Count - 1);
+            controlPointsScales.RemoveAt(controlPointsScales.Count - 1);
+            GenerateMesh(GenerateMeshMode.DeleteSegment);
+        }
+
+        public void SetMaterial(Material material)
+        {
+            if(GetComponent<MeshRenderer>().sharedMaterial == material) return;
+            GetComponent<MeshRenderer>().sharedMaterial = material;
+        }
+
+        public Material GetMaterial()
+        {
+            return GetComponent<MeshRenderer>().sharedMaterial;
+        }
+
+        public void SetShape2D(Shape2D shape2D)
+        {
+            if(this.shape2D == shape2D || shape2D == null) return;
+            this.shape2D = shape2D;
+            GenerateMesh(GenerateMeshMode.GenerateEntirely);
+        }
+
+        public Shape2D GetShape2D()
+        {
+            return shape2D;
+        }
+
+        public int GetRingSegments()
+        {
+            return edgeRingCount;
+        }
+
+        public void SetRingSegments(int edgeRingCount)
+        {
+            if(this.edgeRingCount == edgeRingCount) return;
+            this.edgeRingCount = edgeRingCount;
+            GenerateMesh(GenerateMeshMode.GenerateEntirely);
+        }
+
+        //#endif
+        public void ChangeControlPointData(int index, Vector3 position, Quaternion rotation, Vector3 scale)
+        {
+            controlPoints[index].localPosition = position;
+            controlPoints[index].localRotation = rotation;
+            controlPoints[index].localScale = scale;
+            controlPointsPositions[index] = position;
+            controlPointsRotations[index] = rotation;
+            controlPointsScales[index] = scale;
+        }
+        public int GetControlPointCount()
+        {
+            return controlPoints.Count;
+        }
+
+        public void AddControlPoint()
+        {
+            int index = controlPoints.Count;
+            GameObject controlPoint = new GameObject($"p{index}");
+            controlPoint.transform.SetParent(transform);
+            if(index == 0)
+            {
+                controlPoint.transform.localPosition = new Vector3(0, 0, 0);
+                controlPoint.transform.localScale = new Vector3(8, 1, 8);
+            }
+            else
+            {
+                controlPoint.transform.localPosition =  controlPoints[index - 1].localPosition + controlPoints[index - 1].forward.normalized * (10 + controlPoints[index - 1].localScale.z);
+                controlPoint.transform.localRotation = controlPoints[index - 1].localRotation;
+                controlPoint.transform.localScale = new Vector3(8, 1, 8);
+            }
+            controlPoints.Add(controlPoint.transform);
+            controlPointsPositions.Add(controlPoint.transform.position);
+            controlPointsRotations.Add(controlPoint.transform.rotation);
+            controlPointsScales.Add(controlPoint.transform.localScale);
+            if(controlPoints.Count > 2)GenerateMesh(GenerateMeshMode.AddSegment);
+        }
+
+        public void AddControlPoint(Vector3 position, Quaternion rotation, Vector3 scale)
+        {
+            int index = controlPoints.Count;
+            GameObject controlPoint = new GameObject($"p{index}");
+            controlPoint.transform.SetParent(transform);
+            if(index == 0)
+            {
+                controlPoint.transform.localPosition = position;
+                controlPoint.transform.localScale = scale;
+            }
+            else
+            {
+                controlPoint.transform.localPosition =  position;
+                controlPoint.transform.localRotation = rotation;
+                controlPoint.transform.localScale = scale;
+            }
+            controlPoints.Add(controlPoint.transform);
+            controlPointsPositions.Add(position);
+            controlPointsRotations.Add(rotation);
+            controlPointsScales.Add(scale);
+            if(controlPoints.Count > 2)GenerateMesh(GenerateMeshMode.AddSegment);
+        }
+
         private void GenerateMesh(GenerateMeshMode mode)
         {
             List<Vector3> verts, normals, modifiedVerts, modifiedNormals;
@@ -295,200 +487,5 @@ namespace BezierExtrudeTool
             GetComponent<MeshFilter>().sharedMesh = mesh;
             GetComponent<MeshCollider>().sharedMesh = mesh;
         }
-
-        public void OnDrawGizmos()
-        {
-            for (int i = 0; i < 4 + (3 * (controlPoints.Count - 2)); i++)
-            {
-                Gizmos.DrawSphere(GetPos(i), 0.2f);
-            }
-            for(int i = 0; i < controlPoints.Count - 1; i++)
-            {
-                Handles.DrawBezier(GetPos(0 + (3 * i)), GetPos(3 + (3 * i)), GetPos(1 + (3 * i)), GetPos(2 + (3 * i)), Color.red, EditorGUIUtility.whiteTexture, 1f);
-            }
-
-            OrientedPoint op = GetBezierOrientedPoint(t, bezierSegment);
-            //Handles.PositionHandle(op.position, op.rotation);
-
-            if(showRingShape)
-            {
-                Vector3[] verts = shape2D.vertices.Select(v => op.LocalToWorldPos(v.point)).ToArray();
-                for(int i = 0; i < shape2D.LineCount; i+=2)
-                {
-                    Vector3 a = verts[shape2D.lineIndices[i]];
-                    Vector3 b = verts[shape2D.lineIndices[i+1]];
-                    Gizmos.DrawLine(a, b);
-                }
-            }
-        }
-
-        private OrientedPoint GetBezierOrientedPoint(float t, int bezierSegment)
-        {
-            Vector3[] pts = new Vector3[4];
-            for (int i = 0; i < 4; i++) pts[i] = GetPos(i + (3 * bezierSegment));
-            float omt = 1f-t;
-            float omt2 = omt * omt;
-            float t2 = t * t;
-            Vector3 position =	pts[0] * ( omt2 * omt ) +
-                                pts[1] * ( 3f * omt2 * t ) +
-                                pts[2] * ( 3f * omt * t2 ) +
-                                pts[3] * ( t2 * t );
-
-            Vector3 tangent =   pts[0] * ( -omt2 ) +
-                                pts[1] * ( 3 * omt2 - 2 * omt ) +
-                                pts[2] * ( -3 * t2 + 2 * t ) +
-                                pts[3] * ( t2 );
-            Vector3 up = Vector3.Lerp(controlPoints[0 + (1 * bezierSegment)].up, controlPoints[1 + (1 * bezierSegment)].up, t).normalized;
-            Quaternion rotation = Quaternion.LookRotation(tangent, up);
-            return new OrientedPoint(position, rotation);
-        }
-
-        private float GetApproxLength(int precision = 100)
-        {
-            Vector3[] points = new Vector3[precision * (controlPoints.Count - 1)];
-            for(int i = 0; i < controlPoints.Count - 1; i++)
-            {
-                for (int j = 0; j < precision; j++)
-                {
-                    float t = j / (precision - 1f);
-                    points[j + (precision * i)] = GetBezierOrientedPoint(t, i).position;
-                }
-            }
-            float distance = 0;
-            for(int i = 0; i < precision - 1; i++)
-            {
-                distance += Vector3.Distance(points[i], points[i+1]);
-            }
-            return distance;
-        }
-
-        public void GenerateMeshAsset()
-        {
-            if(mesh == null)
-            {
-                mesh = new Mesh();
-                mesh.name = name + " Mesh";
-                GenerateMesh(GenerateMeshMode.GenerateEntirely);
-            }
-            if(!Directory.Exists("Assets/Resources/Bezier Models")) Directory.CreateDirectory("Assets/Resources/Bezier Models");
-            var path = $"Assets/Resources/Bezier Models/{mesh.name}.asset";
-
-            AssetDatabase.CreateAsset(mesh, path);
-            EditorGUIUtility.PingObject(mesh);
-        }
-
-        public void DeleteMeshAsset()
-        {
-            var path = $"Assets/Resources/Bezier Models/{mesh.name}.asset";
-            AssetDatabase.DeleteAsset(path);
-            mesh = new Mesh();
-            mesh.name = name + " Mesh";
-            GenerateMesh(GenerateMeshMode.GenerateEntirely);
-        }
-
-        public bool CheckMeshAsset()
-        {
-            if(mesh == null) return false;
-            var path = $"Assets/Resources/Bezier Models/{mesh.name}.asset";
-            return AssetDatabase.LoadAssetAtPath<Mesh>(path) != null;
-        }
-
-        public int GetControlPointCount()
-        {
-            return controlPoints.Count;
-        }
-
-        public void AddControlPoint()
-        {
-            int index = controlPoints.Count;
-            GameObject controlPoint = new GameObject($"p{index}");
-            controlPoint.transform.SetParent(transform);
-            if(index == 0)
-            {
-                controlPoint.transform.localPosition = new Vector3(0, 0, 0);
-                controlPoint.transform.localScale = new Vector3(8, 1, 8);
-            }
-            else
-            {
-                controlPoint.transform.localPosition =  controlPoints[index - 1].localPosition + controlPoints[index - 1].forward.normalized * (10 + controlPoints[index - 1].localScale.z);
-                controlPoint.transform.localRotation = controlPoints[index - 1].localRotation;
-                controlPoint.transform.localScale = new Vector3(8, 1, 8);
-            }
-            controlPoints.Add(controlPoint.transform);
-            controlPointsPositions.Add(controlPoint.transform.position);
-            controlPointsRotations.Add(controlPoint.transform.rotation);
-            controlPointsScales.Add(controlPoint.transform.localScale);
-            if(controlPoints.Count > 2)GenerateMesh(GenerateMeshMode.AddSegment);
-        }
-
-        public void AddControlPoint(Vector3 position, Quaternion rotation, Vector3 scale)
-        {
-            int index = controlPoints.Count;
-            GameObject controlPoint = new GameObject($"p{index}");
-            controlPoint.transform.SetParent(transform);
-            if(index == 0)
-            {
-                controlPoint.transform.localPosition = position;
-                controlPoint.transform.localScale = scale;
-            }
-            else
-            {
-                controlPoint.transform.localPosition =  position;
-                controlPoint.transform.localRotation = rotation;
-                controlPoint.transform.localScale = scale;
-            }
-            controlPoints.Add(controlPoint.transform);
-            controlPointsPositions.Add(position);
-            controlPointsRotations.Add(rotation);
-            controlPointsScales.Add(scale);
-            if(controlPoints.Count > 2)GenerateMesh(GenerateMeshMode.AddSegment);
-        }
-
-        public void RemoveControlPoint()
-        {
-            DestroyImmediate(controlPoints[controlPoints.Count - 1].gameObject);
-            controlPoints.RemoveAt(controlPoints.Count - 1);
-            controlPointsPositions.RemoveAt(controlPointsPositions.Count - 1);
-            controlPointsRotations.RemoveAt(controlPointsRotations.Count - 1);
-            controlPointsScales.RemoveAt(controlPointsScales.Count - 1);
-            GenerateMesh(GenerateMeshMode.DeleteSegment);
-        }
-
-        public void SetMaterial(Material material)
-        {
-            if(GetComponent<MeshRenderer>().sharedMaterial == material) return;
-            GetComponent<MeshRenderer>().sharedMaterial = material;
-        }
-
-        public Material GetMaterial()
-        {
-            return GetComponent<MeshRenderer>().sharedMaterial;
-        }
-
-        public void SetShape2D(Shape2D shape2D)
-        {
-            if(this.shape2D == shape2D || shape2D == null) return;
-            this.shape2D = shape2D;
-            GenerateMesh(GenerateMeshMode.GenerateEntirely);
-        }
-
-        public Shape2D GetShape2D()
-        {
-            return shape2D;
-        }
-
-        public int GetRingSegments()
-        {
-            return edgeRingCount;
-        }
-
-        public void SetRingSegments(int edgeRingCount)
-        {
-            if(this.edgeRingCount == edgeRingCount) return;
-            this.edgeRingCount = edgeRingCount;
-            GenerateMesh(GenerateMeshMode.GenerateEntirely);
-        }
-
-        #endif
     }
 }

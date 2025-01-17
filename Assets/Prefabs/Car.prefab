@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2915764875354951887}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Meshes
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -44,7 +44,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5559568585231493173}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Wheels
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -78,7 +78,7 @@ GameObject:
   - component: {fileID: 8479708232315359296}
   - component: {fileID: 661256849154523781}
   - component: {fileID: 6150908312853298878}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Mark
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -102,7 +102,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_SizeDelta: {x: 200, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &661256849154523781
 CanvasRenderer:
@@ -132,7 +132,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Texture: {fileID: 0}
+  m_Texture: {fileID: 10912, guid: 0000000000000000f000000000000000, type: 0}
   m_UVRect:
     serializedVersion: 2
     x: 0
@@ -151,7 +151,7 @@ GameObject:
   - component: {fileID: 5028222527524730700}
   - component: {fileID: 7638850146317422258}
   - component: {fileID: 3215996566145241369}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: CanvasMark
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -252,7 +252,7 @@ GameObject:
   - component: {fileID: 4895217776885264315}
   - component: {fileID: 169667324069555272}
   - component: {fileID: 8938510608599892359}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: FrontLeftWheel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -338,7 +338,7 @@ GameObject:
   - component: {fileID: 7699199734742661600}
   - component: {fileID: 98478627320077033}
   - component: {fileID: 5063082861300737193}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Sphere
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -354,9 +354,9 @@ Transform:
   m_GameObject: {fileID: 1263104995904892519}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalPosition: {x: 0, y: 0.5, z: 0}
+  m_LocalScale: {x: 0.95, y: 0.95, z: 0.95}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 2493020431994030728}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -380,7 +380,7 @@ SphereCollider:
   m_Enabled: 1
   serializedVersion: 3
   m_Radius: 0.5
-  m_Center: {x: 0, y: 0.5, z: 0}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!54 &98478627320077033
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -406,7 +406,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 1
-  m_Constraints: 80
+  m_Constraints: 0
   m_CollisionDetection: 0
 --- !u!114 &5063082861300737193
 MonoBehaviour:
@@ -432,7 +432,7 @@ GameObject:
   - component: {fileID: 4448690371837568539}
   - component: {fileID: 9082530257097246482}
   - component: {fileID: 2197894866958333065}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: FrontRightWheel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -517,7 +517,7 @@ GameObject:
   - component: {fileID: 5961545229579345902}
   - component: {fileID: 9035932362222383171}
   - component: {fileID: 7440669311930654072}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: RearLeftWheel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -603,7 +603,7 @@ GameObject:
   - component: {fileID: 674437722858285680}
   - component: {fileID: 6452435644039535393}
   - component: {fileID: 3175776529642484300}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -710,7 +710,7 @@ GameObject:
   - component: {fileID: 1145487389299484463}
   - component: {fileID: 4193281491568098591}
   - component: {fileID: 1680296809370127121}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: RearRightWheel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -796,7 +796,7 @@ GameObject:
   - component: {fileID: 6734017857472008666}
   - component: {fileID: 7005446460011600665}
   - component: {fileID: 4969073531363410151}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Car
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -843,6 +843,7 @@ MonoBehaviour:
   leftFrontWheel: {fileID: 4895217776885264315}
   rightFrontWheel: {fileID: 4448690371837568539}
   convexHull: {fileID: 0}
+  isBot: 1
   forwardAccel: 35
   reverseAccel: 15
   turnStrength: 180
@@ -856,7 +857,11 @@ MonoBehaviour:
   groundRayPoint: {fileID: 3967137596700365530}
   checkpoints: 
   numberLaps: 0
-  timeSpent: 0
+  lapTime: 0
+  botDifficulty: 0
+  metricsSaver: {fileID: 0}
+  lapText: {fileID: 0}
+  TimeExposer: {fileID: 0}
 --- !u!114 &7005446460011600665
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -914,7 +919,7 @@ GameObject:
   - component: {fileID: 2106721829330273264}
   - component: {fileID: 3346407502478165093}
   - component: {fileID: 4057727352689508359}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: Camera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -975,7 +980,7 @@ Camera:
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 631
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 1

@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class EndpointController : MonoBehaviour
 {
+    int position = 1;
     void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.tag == "Player")
@@ -13,7 +14,8 @@ public class EndpointController : MonoBehaviour
             {
                 if (controller.checkpoints[controller.checkpoints.Length - 1])
                 {
-                    controller.LapFinished();
+                    if (controller.numberLaps == 1 && controller.isBot) position++;
+                    controller.LapFinished(position);
                 }
             }
             catch 
